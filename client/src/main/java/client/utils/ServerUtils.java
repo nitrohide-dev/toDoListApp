@@ -16,7 +16,6 @@
 package client.utils;
 
 import commons.Board;
-import commons.Quote;
 import commons.CreateBoardModel;
 import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.client.Entity;
@@ -45,9 +44,11 @@ import java.util.function.Consumer;
 
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 
+@SuppressWarnings("ALL")
 public class ServerUtils {
 
     private static final String SERVER = "http://localhost:8080/";
+
 
     public void getQuotesTheHardWay() throws IOException {
         var url = new URL("http://localhost:8080/api/quotes");
@@ -59,21 +60,6 @@ public class ServerUtils {
         }
     }
 
-    public List<Quote> getQuotes() {
-        return ClientBuilder.newClient(new ClientConfig()) //
-                .target(SERVER).path("api/quotes") //
-                .request(APPLICATION_JSON) //
-                .accept(APPLICATION_JSON) //
-                .get(new GenericType<List<Quote>>() {});
-    }
-
-    public Quote addQuote(Quote quote) {
-        return ClientBuilder.newClient(new ClientConfig()) //
-                .target(SERVER).path("api/quotes") //
-                .request(APPLICATION_JSON) //
-                .accept(APPLICATION_JSON) //
-                .post(Entity.entity(quote, APPLICATION_JSON), Quote.class);
-    }
 
     /**
      * Sends request to the server that gets the board by id
@@ -153,8 +139,7 @@ public class ServerUtils {
             .accept(APPLICATION_JSON)
             .post(Entity.entity(null, APPLICATION_JSON), Response.class);
 
-        if (res.getStatus() == 200) return true;
-        else return false;
+        return res.getStatus() == 200;
     }
 
 
@@ -229,4 +214,36 @@ public class ServerUtils {
     public void updateBoard(Board board) {
         send("/app/boards", board);
     }
+
+    /**
+     * initial authentication on the side of the server
+     * @param password password hashed
+     * @return whether it was successful or not
+     */
+    public boolean authenticate(String password) {
+        return ClientBuilder.newClient(new ClientConfig())
+                .target(SERVER).path("api/boards/login")
+                .request(APPLICATION_JSON)
+                .accept(APPLICATION_JSON)
+                .header("password",password)
+                .get(Boolean.class);
+    }
+
+
+    public boolean changePassword(String passwordHashed) {
+        return ClientBuilder.newClient(new ClientConfig())
+                .target(SERVER).path("api/boards/changePassword")
+                .request(APPLICATION_JSON)
+                .accept(APPLICATION_JSON)
+                .header("passwordHashed",passwordHashed)
+                .get(Boolean.class);
+    }
+
+    public void logout(){
+        ClientBuilder.newClient(new ClientConfig())
+         .target(SERVER).path("api/boards/logout")
+                .request(APPLICATION_JSON)
+                .accept(APPLICATION_JSON);
+    }
+
 }

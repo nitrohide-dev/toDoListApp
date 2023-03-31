@@ -18,16 +18,25 @@ package client.scenes;
 import client.utils.ServerUtils;
 import com.google.inject.Inject;
 import commons.Board;
+//import javafx.geometry.Rectangle2D;
 import commons.CreateBoardModel;
-import commons.User;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.stage.Screen;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Pair;
 
+import java.util.Objects;
+
+import java.io.FileReader;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.net.SocketException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainCtrl {
     private ServerUtils server;
@@ -35,13 +44,6 @@ public class MainCtrl {
     private Stage primaryStage;
     private LandingPageCtrl landingCtrl;
     private Scene landing;
-
-    private QuoteOverviewCtrl overviewCtrl;
-    private Scene overview;
-
-    private AddQuoteCtrl addCtrl;
-    private Scene add;
-
     private BoardOverviewCtrl boardOverviewCtrl;
     private Scene boardOverview;
 
@@ -51,24 +53,29 @@ public class MainCtrl {
     private Scene boardCreate;
     private BoardCreateCtrl boardCreateCtrl;
 
+    private AdminOverviewCtrl adminOverviewCtrl;
+    private Scene adminOverview;
+    private AdminLoginCtrl adminLoginCtrl;
+    private Scene adminLogin;
+    private PasswordChangeCtrl passwordChangeCtrl;
+    private Scene passwordChange;
+
     @Inject
     public MainCtrl(ServerUtils server){
         this.server = server;
     }
 
     public void initialize(Stage primaryStage, Pair<LandingPageCtrl, Parent> landing,
-//                           Pair<AddQuoteCtrl, Parent> add,
-                           Pair<BoardOverviewCtrl, Parent> boardOverview,
+                          Pair<BoardOverviewCtrl, Parent> boardOverview,
                             Pair<UserMenuCtrl, Parent> userMenu,
-                           Pair<BoardCreateCtrl, Parent> boardCreate) throws IOException {
+                           Pair<BoardCreateCtrl, Parent> boardCreate,
+                            Pair<AdminOverviewCtrl, Parent> adminOverview,
+                           Pair<AdminLoginCtrl, Parent> adminLogin,
+                           Pair<PasswordChangeCtrl, Parent> passwordChange) throws IOException {
         this.primaryStage = primaryStage;
+
         this.landingCtrl = landing.getKey();
         this.landing = new Scene(landing.getValue());
-//        this.overviewCtrl = overview.getKey();
-//        this.overview = new Scene(overview.getValue());
-//
-//        this.addCtrl = add.getKey();
-//        this.add = new Scene(add.getValue());
 
         this.boardOverviewCtrl = boardOverview.getKey();
         this.boardOverview = new Scene(boardOverview.getValue());
@@ -77,13 +84,29 @@ public class MainCtrl {
         this.userMenuCtrl = userMenu.getKey();
         this.userMenu = new Scene(userMenu.getValue());
 
+
+
         this.boardCreateCtrl = boardCreate.getKey();
         this.boardCreate = new Scene(boardCreate.getValue());
-        showLanding();
 
+        this.adminOverviewCtrl = adminOverview.getKey();
+        this.adminOverview = new Scene(adminOverview.getValue());
+
+        this.adminLoginCtrl = adminLogin.getKey();
+        this.adminLogin = new Scene(adminLogin.getValue());
+
+        this.passwordChangeCtrl = passwordChange.getKey();
+        this.passwordChange = new Scene(passwordChange.getValue());
+
+        showLanding();
+        //primaryStage.setScene(this.adminOverview);
 
         primaryStage.show();
 
+        List<String> boardNames=this.readFromCsv();
+        for(String board : boardNames){
+            userMenuCtrl.addBoard(board);
+        }
 
 
 
@@ -97,36 +120,37 @@ public class MainCtrl {
         currBoard = board;
     }
 
-    public void showOverview() {
-        primaryStage.setTitle("Quotes: Overview");
-        primaryStage.setScene(overview);
-        overviewCtrl.refresh();
-    }
-
     public void showLanding(){
         primaryStage.setMinWidth(600);
         primaryStage.setMinHeight(400);
         landingCtrl.changeImageUrl();
         primaryStage.setTitle("Welcome to Talio!");
         primaryStage.setScene(landing);
-        landing.getStylesheets().add(getClass().getResource("css/styles.css").toExternalForm());
-        landingCtrl.refresh();
+        landing.getStylesheets().add(Objects.requireNonNull(getClass().getResource("css/styles.css")).toExternalForm());
     }
 
     public void showBoard(Board board) {
         currBoard = board;
         primaryStage.setTitle("Board: Your Board");
+        //primaryStage.setMaximized(true);
+        primaryStage.setMinWidth(750);
+        primaryStage.setMinHeight(600);
+        //this fixes a bug where the maximized window will be opened in pref size.
+        //but it causes a bug where the window is not properly set, so the buttons on the right side are not visible
+        //TODO fix this bug
+        Screen screen = Screen.getPrimary();
+        //Rectangle2D bounds = screen.getVisualBounds();
+//        primaryStage.setWidth(bounds.getWidth());
+//        primaryStage.setHeight(bounds.getHeight());
+        boardOverview.getStylesheets().add(Objects.requireNonNull(getClass()
+                .getResource("css/BoardOverview.css")).toExternalForm());
+        boardOverviewCtrl.changeImageUrl();
         primaryStage.setScene(boardOverview);
         boardOverviewCtrl.load(board);
         boardOverviewCtrl.connect();
         // connects to /topic/boards
     }
 
-    public void showAdd() {
-        primaryStage.setTitle("Quotes: Adding Quote");
-        primaryStage.setScene(add);
-        add.setOnKeyPressed(e -> addCtrl.keyPressed(e));
-    }
 
     public void showUserMenu(){
         primaryStage.setScene(userMenu);
@@ -141,16 +165,98 @@ public class MainCtrl {
 
     }
 
-    public void createBoard(String name, int password){
-        userMenuCtrl.addBoardToList(name,password);
-        server.createBoard(new CreateBoardModel(name,name,password));
+    public void createBoard(String name,String title){
+        server.createBoard(new CreateBoardModel(name,title,0));
+        userMenuCtrl.addBoard(name);
         showUserMenu();
     }
 
-    public void closingApp() throws IOException {
-        userMenuCtrl.getUser().writeToCsv();
+    /**
+     * writes user's favorite boards and their hashed passwords to file on their computer
+     * @throws IOException exception for input
+     */
+    public void writeToCsv() throws IOException {
+        File dir = new File(System.getProperty("user.dir") + "/client/src/main/resources/");
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+        File file = new File(dir, "data.csv");
+        if(file.exists()){file.delete();}
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+            writer.write(userMenuCtrl.getBoards().toString());
+        }
     }
 
+    public UserMenuCtrl getUserMenuCtrl(){
+        return userMenuCtrl;
+    }
+    /**
+     * reads user's saved data(if they exist) from the local file
+     * @return list of names of baords
+     * @throws IOException shouldn't happen
+     */
+    public List<String> readFromCsv() throws IOException {
+        List<String> boardNames=new ArrayList<>();
+        File dir = new File(System.getProperty("user.dir") + "/client/src/main/resources/data.csv");
+        if(!dir.exists()) {
+            return boardNames;
+        }
+        try (BufferedReader reader = new BufferedReader(new FileReader(dir))) {
+            String line= reader.readLine();
+            line= line.substring(1,line.length()-1);
+            String[] boards = line.split(",* ");
+            for(String string : boards) {
 
+                String key = string.trim();
+                if(!key.equals("") && server.findBoard(key)!=null){
+                    boardNames.add(key);}
+            }
+        }
+        return boardNames;
+    }
 
+    public void adminLogin() {
+        Stage create = new Stage();
+        create.setScene(adminLogin);
+        create.initModality(Modality.APPLICATION_MODAL);
+        create.showAndWait();
+    }
+    public void adminOverview(){
+        primaryStage.close();
+        primaryStage = new Stage();
+        setAdminPresence(true);
+        primaryStage.setScene(adminOverview);
+        adminOverviewCtrl.refresh();
+        primaryStage.show();
+    }
+
+    /**
+     * Used only by admin
+     * @param board Board to view
+     */
+    public void showBoardNewWindow(Board board) {
+        Stage stage = new Stage();
+        currBoard = board;
+        stage.setTitle("Board: Your Board");
+        stage.setMinWidth(750);
+        stage.setMinHeight(600);
+        stage.setScene(boardOverview);
+        boardOverview.getStylesheets().add(Objects.requireNonNull(getClass()
+                .getResource("css/BoardOverview.css")).toExternalForm());
+        boardOverviewCtrl.changeImageUrl();
+        boardOverviewCtrl.load(board);
+        boardOverviewCtrl.connect();
+        stage.show();
+    }
+
+    public void changePassword(){
+        Stage create = new Stage();
+        create.setScene(passwordChange);
+        create.initModality(Modality.APPLICATION_MODAL);
+        create.showAndWait();
+
+    }
+    public void setAdminPresence(boolean adminPresence) {
+        boardOverviewCtrl.setAdminPresence(adminPresence);
+    }
 }
