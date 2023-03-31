@@ -21,4 +21,14 @@ import org.junit.jupiter.api.Test;
 public class MainCtrlTest {
 
 
+    @BeforeEach
+    public void setup() {
+//        MainCtrl sut = new MainCtrl();
+    }
+
+    @Test
+    public void writeSomeTests() {
+        // TODO create replacement objects and write some tests
+        // sut.initialize(null, null, null);
+    }
 }

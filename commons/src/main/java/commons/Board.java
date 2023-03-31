@@ -10,61 +10,54 @@ import javax.persistence.OneToMany;
 import javax.persistence.CascadeType;
 import javax.persistence.FetchType;
 import javax.persistence.OrderColumn;
-import javax.swing.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+@SuppressWarnings("SpellCheckingInspection")
 @Entity
+
 public class Board {
 
 //    attributes
 
     @Id
     @Column(nullable=false, unique=true)
-    private String key;
+    private java.lang.String key;
 
     @Column(nullable=false)
     private String title;
 
- @Column(nullable=false)
-    private int password;
+    @Column(nullable=false)
+    private long password;  //if password is 0, board is unlocked
 
-    private boolean locked;
-   
+
     @JsonManagedReference
     @OneToMany(mappedBy = "board", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
-    @OrderColumn
+    @OrderColumn(name="taskLists")
     private List<TaskList> taskLists;
 
 //    constructors
 
     public Board() {} // for object mappers, please don't use.
 
-    public Board(String key){
-        this.key = key;
-        this.title = key;
-        this.taskLists = new ArrayList<>();
-        this.password = 0;
+    public Board(String key) {
+        this(key, "", 0L, new ArrayList<>());
     }
+
     public Board(CreateBoardModel model) {
         this(model.getKey(), model.getTitle(), model.getPassword(), new ArrayList<>());
     }
 
-   public Board(String title, String key, List<TaskList> taskLists) {
-        this.key = key;
-        this.title = title;
-        this.taskLists = taskLists;
-        this.password =0;
+    public Board(String title, String key, List<TaskList> taskLists) {
+        this(key,title,0,taskLists);
     }
 
-
-     
-    public Board(String title, String key,int password,List<TaskList> taskLists) {
+    public Board(String key, String title, long password, List<TaskList> taskLists) {
         this.key = key;
         this.title = title;
-        this.taskLists = taskLists;
         this.password = password;
+        this.taskLists = taskLists;
     }
 
 //    getters and setters
@@ -85,8 +78,12 @@ public class Board {
         this.title = title;
     }
 
-    public int getPassword() {
+    public long getPassword() {
         return password;
+    }
+
+    public void setPassword(long password) {
+        this.password = password;
     }
 
     public List<TaskList> getTaskLists() {
@@ -96,8 +93,6 @@ public class Board {
     public void setTaskLists(List<TaskList> taskLists) {
         this.taskLists = taskLists;
     }
-
-    public void setPassword(int password){this.password=password;}
 
 //    equals and hashcode
 
@@ -127,7 +122,7 @@ public class Board {
     public int hashCode() {
         int result = key != null ? key.hashCode() : 0;
         result = 31 * result + (title != null ? title.hashCode() : 0);
-        result = 31 * result + ( password);
+        result = 31 * result + (int)( password);
         result = 31 * result + (taskLists != null ? taskLists.hashCode() : 0);
         return result;
     }
@@ -147,16 +142,12 @@ public class Board {
 
     /**
      * Removes {@code taskList} from this board and sets its parent to null.
-     * @param taskList
+     * @param taskList to be deleted tasklist
      */
     public void removeTaskList(TaskList taskList) {
         if (taskList == null)
             throw new IllegalArgumentException("TaskList cannot be null");
         this.taskLists.remove(taskList);
         taskList.setBoard(null);
-    }
-
-    public boolean isLocked(){
-        return locked;
     }
 }
