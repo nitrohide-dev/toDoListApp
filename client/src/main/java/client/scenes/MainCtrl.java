@@ -26,6 +26,8 @@ import javafx.stage.Screen;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Pair;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Objects;
 
@@ -47,8 +49,11 @@ public class MainCtrl {
     private BoardOverviewCtrl boardOverviewCtrl;
     private Scene boardOverview;
 
+    @Getter
+    @Setter
     private Board currBoard;
     private Scene userMenu;
+    @Getter
     private UserMenuCtrl userMenuCtrl;
     private Scene boardCreate;
     private BoardCreateCtrl boardCreateCtrl;
@@ -80,7 +85,6 @@ public class MainCtrl {
         this.boardOverviewCtrl = boardOverview.getKey();
         this.boardOverview = new Scene(boardOverview.getValue());
 
-
         this.userMenuCtrl = userMenu.getKey();
         this.userMenu = new Scene(userMenu.getValue());
 
@@ -103,10 +107,6 @@ public class MainCtrl {
 
         primaryStage.show();
 
-        List<String> boardNames=this.readFromCsv();
-        for(String board : boardNames){
-            userMenuCtrl.addBoard(board);
-        }
 
 
 
@@ -139,7 +139,7 @@ public class MainCtrl {
         //but it causes a bug where the window is not properly set, so the buttons on the right side are not visible
         //TODO fix this bug
         Screen screen = Screen.getPrimary();
-        //Rectangle2D bounds = screen.getVisualBounds();
+//        Rectangle2D bounds = screen.getVisualBounds();
 //        primaryStage.setWidth(bounds.getWidth());
 //        primaryStage.setHeight(bounds.getHeight());
         boardOverview.getStylesheets().add(Objects.requireNonNull(getClass()
@@ -147,16 +147,22 @@ public class MainCtrl {
         boardOverviewCtrl.changeImageUrl();
         primaryStage.setScene(boardOverview);
         boardOverviewCtrl.load(board);
-        boardOverviewCtrl.connect();
-        // connects to /topic/boards
+        boardOverviewCtrl.connect(); // connects to /topic/boards
+
     }
 
-
-    public void showUserMenu(){
+    public void showUserMenuFirstTime() throws IOException {
+        List<String> boardNames=readFromCsv();
+        for(String board : boardNames){
+            userMenuCtrl.addBoard(board);
+        }
         primaryStage.setScene(userMenu);
     }
 
+    public void showUserMenu()  {
 
+        primaryStage.setScene(userMenu);
+    }
     public void showBoardCreate(){
         Stage create = new Stage();
         create.setScene(boardCreate);
@@ -166,7 +172,8 @@ public class MainCtrl {
     }
 
     public void createBoard(String name,String title){
-        server.createBoard(new CreateBoardModel(name,title,0));
+        server.createBoard(new CreateBoardModel(name,title));
+        Board b = new Board(new CreateBoardModel(name,title));
         userMenuCtrl.addBoard(name);
         showUserMenu();
     }
@@ -187,9 +194,6 @@ public class MainCtrl {
         }
     }
 
-    public UserMenuCtrl getUserMenuCtrl(){
-        return userMenuCtrl;
-    }
     /**
      * reads user's saved data(if they exist) from the local file
      * @return list of names of baords
@@ -208,7 +212,7 @@ public class MainCtrl {
             for(String string : boards) {
 
                 String key = string.trim();
-                if(!key.equals("") && server.findBoard(key)!=null){
+                if(!key.equals("") ){
                     boardNames.add(key);}
             }
         }
@@ -226,7 +230,7 @@ public class MainCtrl {
         primaryStage = new Stage();
         setAdminPresence(true);
         primaryStage.setScene(adminOverview);
-        adminOverviewCtrl.refresh();
+        adminOverviewCtrl.init();
         primaryStage.show();
     }
 
