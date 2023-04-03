@@ -50,6 +50,7 @@ public class UserMenuCtrl {
 
     public void initialize() throws IOException {
 
+
     }
 
     /**
@@ -80,17 +81,6 @@ public class UserMenuCtrl {
             return;
         }
         boardNames.add(text);
-
-        ObservableList<HBox> boardsList = boardsListView.getItems();
-        for(int i=0;i<boardsList.size();i++)
-        {
-            HBox box = (HBox) boardsList.get(i);
-            String text2 = ((Label) box.getChildren().get(0)).getText();
-            if(text2.equals(text)) {
-                System.out.println("hello");
-                return;
-            }
-        }
         HBox itemBox = new HBox();
         Label itemLabel = new Label(text);
         itemLabel.setPrefWidth(120);
